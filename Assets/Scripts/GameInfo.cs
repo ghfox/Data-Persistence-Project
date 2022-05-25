@@ -4,7 +4,6 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using System.IO;
-using System;
 
 public class GameInfo : MonoBehaviour
 {
@@ -92,6 +91,13 @@ public class GameInfo : MonoBehaviour
         }
         File.WriteAllText(Filepath, JsonUtility.ToJson(newData));
     }
+
+    public int GetNumHiscores() { return ScoresList.Count; }
+    public string GetNameOfNthScore(int n) { return ScoresList[n].name; }
+    public int GetScoreOfNthScore(int n) { return ScoresList[n].score; }
+
+    public void GoToHiscore() { SceneManager.LoadScene(2); }
+    public void GoToMenu() { SceneManager.LoadScene(0); }
 
     public class PlayerInfo
     {

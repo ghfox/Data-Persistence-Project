@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
-using System.IO; 
+using System.IO;
+using System;
 
 public class GameInfo : MonoBehaviour
 {
-
     public static GameInfo Instance;
-    PlayerInfo Player;
-    PlayerInfo HiScore;
+    string Player;
+    List<PlayerInfo> ScoresList;
     private string Filepath;
     // Start is called before the first frame update
     void Start()
@@ -21,11 +21,32 @@ public class GameInfo : MonoBehaviour
             return;
         }
         Instance = this;
-        Player = new PlayerInfo();
-        HiScore = new PlayerInfo();
+        ScoresList = new List<PlayerInfo>();
         Filepath = Application.persistentDataPath + "/hiscore.json";
         LoadHighScore();
+    }
 
+    private void LoadHighScore()
+    {
+        if (!File.Exists(Filepath))
+        {
+            Debug.Log("No Highscore found!");
+            return;
+        }
+        GameData hiscores = JsonUtility.FromJson<GameData>(File.ReadAllText(Filepath));
+        for(int i = 0; i < hiscores.hiscoreInts.Count; i++)
+        {
+            ScoresList.Add(new PlayerInfo(hiscores.hiscoreStrs[i], hiscores.hiscoreInts[i]));
+        }
+    }
+
+    private static int ComparePlayerScores(PlayerInfo x, PlayerInfo y)
+    {
+        if (x.score > y.score)
+            return -1;
+        if (x.score < y.score)
+            return 1;
+        return 0;
     }
 
     private void Awake()
@@ -35,44 +56,64 @@ public class GameInfo : MonoBehaviour
 
     public void NewGame()
     {
-        Player.score = 0;
-        Player.name = GameObject.Find("PlayerName").GetComponent<TMP_InputField>().text;
-        Debug.Log($"My name is {Player.name}");
+        Player = GameObject.Find("PlayerName").GetComponent<TMP_InputField>().text;
+        Debug.Log($"My name is {Player}");
         SceneManager.LoadScene(1);
     }
 
-    public string PlayerName() { return Player.name; }
-    public int TopScore() { return HiScore.score; }
-    public string TopName() { return HiScore.name; }
+    public string PlayerName() { return Player; }
+    public int TopScore() 
+    {
+        if (ScoresList.Count > 0)
+            return ScoresList[0].score;
+        else
+            return 0;
+    }
+    public string TopName() 
+    {
+        if (ScoresList.Count > 0)
+            return ScoresList[0].name;
+        else
+            return "Nobody";
+    }
 
     public void SubmitFinalScore(int score)
     {
-        Player.score = score;
-        if (Player.score > HiScore.score)
+        PlayerInfo newEntry = new PlayerInfo(Player, score);
+        ScoresList.Add(newEntry);
+        ScoresList.Sort(ComparePlayerScores);
+        if(ScoresList.Count > 10)
+            ScoresList = ScoresList.GetRange(0, 10);
+        GameData newData = new GameData();
+        foreach(var entry in ScoresList)
         {
-            HiScore.score = Player.score;
-            HiScore.name = Player.name;
-            File.WriteAllText(Filepath, JsonUtility.ToJson(HiScore));
+            newData.hiscoreInts.Add(entry.score);
+            newData.hiscoreStrs.Add(entry.name);
         }
+        File.WriteAllText(Filepath, JsonUtility.ToJson(newData));
     }
 
-    private void LoadHighScore()
+    public class PlayerInfo
     {
-        if (!File.Exists(Filepath))
+        public PlayerInfo(string _name, int _score)
         {
-            HiScore.score = 0;
-            HiScore.name = "";
-            Debug.Log("No Highscore found!");
-            return;
+            name = _name;
+            score = _score;
         }
-        HiScore = JsonUtility.FromJson<PlayerInfo>(File.ReadAllText(Filepath));
-        Debug.Log("Loaded the highscore!");
+        public string name;
+        public int score;
     }
 
     [System.Serializable]
-    public class PlayerInfo
+    public class GameData
     {
-        public string name;
-        public int score;
+        public GameData()
+        {
+            hiscoreInts = new List<int>();
+            hiscoreStrs = new List<string>();
+        }
+        //Cant use a list of custom types without way more work :(
+        public List<int> hiscoreInts;
+        public List<string> hiscoreStrs;
     }
 }
